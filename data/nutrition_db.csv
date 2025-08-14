@@ -1,6 +1,11 @@
-food,calories_per_100g,protein,carbs,fat,fiber
-chicken breast,165,31,0,3.6,0
-quinoa,368,14,64,6.0,7
-salmon,208,25,0,12.0,0
-broccoli,34,3,7,0.4,3
-greek yogurt,97,9,4,5.0,0
+name,calories,protein,carbs,fat,fiber,sugar,sodium
+Mediterranean Quinoa Salad,320,12,45,12,6,8,450
+Grilled Chicken with Steamed Broccoli,280,35,8,12,4,3,320
+Vegetarian Black Bean Tacos,245,10,40,8,12,5,380
+Asian Stir-Fry with Tofu,310,18,35,14,6,8,600
+Heart-Healthy Salmon with Sweet Potato,420,32,25,22,5,8,280
+Low-Carb Zucchini Noodles with Pesto,180,8,12,14,4,8,320
+Diabetes-Friendly Lentil Soup,220,14,35,3,15,6,480
+High-Protein Greek Yogurt Bowl,350,25,35,15,8,22,100
+Low-Sodium Herb-Crusted Chicken,240,30,2,12,1,1,150
+Vegan Buddha Bowl,480,18,65,18,14,12,290
