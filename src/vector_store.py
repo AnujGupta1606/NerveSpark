@@ -79,27 +79,25 @@ class RecipeVectorStore:
                     allow_reset=True
                 )
             )
+            logger.info(f"Created PersistentClient at: {self.db_path}")
         except Exception as e:
             logger.warning(f"PersistentClient failed, using EphemeralClient: {e}")
             # Fallback to in-memory client for cloud deployment
             self.client = chromadb.EphemeralClient()
-            
-            # Get or create collection
-            try:
-                self.collection = self.client.get_collection(name=self.collection_name)
-                logger.info(f"Connected to existing collection: {self.collection_name}")
-            except:
-                self.collection = self.client.create_collection(
-                    name=self.collection_name,
-                    metadata={"description": "Recipe embeddings for nutrition assistant"}
-                )
-                logger.info(f"Created new collection: {self.collection_name}")
-            
-            self.using_chromadb = True
-                
-        except Exception as e:
-            logger.error(f"Error initializing ChromaDB: {e}")
-            raise
+            logger.warning("Using EphemeralClient - data will not persist")
+        
+        # Get or create collection
+        try:
+            self.collection = self.client.get_collection(name=self.collection_name)
+            logger.info(f"Connected to existing collection: {self.collection_name} with {self.collection.count()} recipes")
+        except:
+            self.collection = self.client.create_collection(
+                name=self.collection_name,
+                metadata={"description": "Recipe embeddings for nutrition assistant"}
+            )
+            logger.info(f"Created new collection: {self.collection_name}")
+        
+        self.using_chromadb = True
     
     def add_recipe(self, recipe_id: str, recipe_data: Dict[str, Any], embedding: np.ndarray):
         """Add a single recipe to the vector store."""
