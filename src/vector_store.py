@@ -9,14 +9,21 @@ import tempfile
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Try to import ChromaDB, fall back to simple implementation if it fails
-try:
-    import chromadb
-    from chromadb.config import Settings
-    CHROMADB_AVAILABLE = True
-except ImportError:
-    CHROMADB_AVAILABLE = False
-    logger.warning("ChromaDB not available, using fallback implementation")
+# Check if we're in a cloud environment
+IS_CLOUD_DEPLOYMENT = os.getenv('STREAMLIT_SHARING_MODE') is not None or '/mount/src/' in os.getcwd()
+
+# Try to import ChromaDB only if not in cloud deployment
+CHROMADB_AVAILABLE = False
+if not IS_CLOUD_DEPLOYMENT:
+    try:
+        import chromadb
+        from chromadb.config import Settings
+        CHROMADB_AVAILABLE = True
+        logger.info("ChromaDB available for local use")
+    except ImportError:
+        logger.warning("ChromaDB not available, using fallback implementation")
+else:
+    logger.info("Cloud deployment detected, skipping ChromaDB import")
 
 # Import fallback vector store
 from src.fallback_vector_store import FallbackVectorStore

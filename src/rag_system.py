@@ -1,6 +1,10 @@
 from typing import Dict, List, Any, Optional, Tuple
 import logging
 import streamlit as st
+import os
+
+# Check if we're in a cloud environment
+IS_CLOUD_DEPLOYMENT = os.getenv('STREAMLIT_SHARING_MODE') is not None or '/mount/src/' in os.getcwd()
 
 # Import with error handling for cloud deployment
 try:
@@ -9,12 +13,16 @@ try:
     from src.health_logic import HealthLogicEngine
     from src.substitution import IngredientSubstitutionEngine
     from src.cloud_data import initialize_cloud_data
+    IMPORTS_SUCCESSFUL = True
 except ImportError as e:
-    st.error(f"Import error: {e}")
-    st.stop()
+    IMPORTS_SUCCESSFUL = False
+    logger = logging.getLogger(__name__)
+    logger.error(f"Import error: {e}")
+    if not IS_CLOUD_DEPLOYMENT:  # Only show error in local environment
+        st.error(f"Import error: {e}")
+        st.stop()
 
 import openai
-import os
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
