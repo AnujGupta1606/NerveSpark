@@ -9,22 +9,34 @@ import plotly.express as px
 import plotly.graph_objects as go
 from typing import Dict, List, Any, Optional
 import logging
-
-# Import our modules
-from src.rag_system import NutritionalRAGSystem
-from models.user_profile import UserProfile, UserProfileManager
-from utils.nutrition_calc import NutritionCalculator
-from utils.helpers import format_cooking_time, parse_cooking_time
-from config import APP_TITLE, APP_ICON, SIDEBAR_TITLE
+import sys
+import traceback
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Import modules with error handling for cloud deployment
+try:
+    from src.rag_system import NutritionalRAGSystem
+    from models.user_profile import UserProfile, UserProfileManager
+    from utils.nutrition_calc import NutritionCalculator
+    from utils.helpers import format_cooking_time, parse_cooking_time
+    from config import APP_TITLE, APP_ICON, SIDEBAR_TITLE
+except ImportError as e:
+    st.error(f"""
+    **Import Error**: {str(e)}
+    
+    This might be due to missing dependencies or cloud deployment issues.
+    Please check that all required packages are installed.
+    """)
+    st.code(traceback.format_exc())
+    st.stop()
+
 # Page configuration
 st.set_page_config(
-    page_title=APP_TITLE,
-    page_icon=APP_ICON,
+    page_title=APP_TITLE if 'APP_TITLE' in locals() else "NerveSpark",
+    page_icon=APP_ICON if 'APP_ICON' in locals() else "🧠",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -33,15 +45,29 @@ class NerveSparkApp:
     """Main Streamlit application class for NerveSpark."""
     
     def __init__(self):
-        self.rag_system = NutritionalRAGSystem()
-        self.profile_manager = UserProfileManager()
-        self.nutrition_calc = NutritionCalculator()
-        
-        # Initialize session state
-        if 'user_profile' not in st.session_state:
-            st.session_state.user_profile = None
-        if 'query_history' not in st.session_state:
-            st.session_state.query_history = []
+        try:
+            self.rag_system = NutritionalRAGSystem()
+            self.profile_manager = UserProfileManager()
+            self.nutrition_calc = NutritionCalculator()
+            
+            # Initialize session state
+            if 'user_profile' not in st.session_state:
+                st.session_state.user_profile = None
+            if 'query_history' not in st.session_state:
+                st.session_state.query_history = []
+                
+        except Exception as e:
+            st.error(f"""
+            **Initialization Error**: {str(e)}
+            
+            The application failed to initialize properly. 
+            This might be due to cloud deployment limitations.
+            """)
+            st.code(traceback.format_exc())
+            # Continue with minimal functionality
+            self.rag_system = None
+            self.profile_manager = None
+            self.nutrition_calc = None
     
     def render_header(self):
         """Render the application header."""

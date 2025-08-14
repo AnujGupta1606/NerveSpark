@@ -1,4 +1,4 @@
-# NerveSpark Demo Script
+![isme](image.png)# NerveSpark Demo Script
 
 ## 🎬 Demo Video Script (5-7 minutes)
 

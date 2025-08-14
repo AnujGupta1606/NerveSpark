@@ -6,6 +6,7 @@ from typing import List, Dict, Optional, Any, Tuple
 import logging
 import json
 import os
+import tempfile
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -24,10 +25,30 @@ class RecipeVectorStore:
         self._initialize_db()
     
     def _initialize_db(self):
-        """Initialize ChromaDB client and collection."""
+        """Initialize ChromaDB client and collection with cloud compatibility."""
         try:
-            # Create ChromaDB client
-            self.client = chromadb.PersistentClient(path=self.db_path)
+            # For cloud deployment, use a temporary directory if needed
+            if not os.path.exists(self.db_path):
+                try:
+                    os.makedirs(self.db_path, exist_ok=True)
+                except PermissionError:
+                    # Fallback to temporary directory for cloud deployment
+                    self.db_path = tempfile.mkdtemp()
+                    logger.warning(f"Using temporary directory for ChromaDB: {self.db_path}")
+            
+            # Create ChromaDB client with cloud-compatible settings
+            try:
+                self.client = chromadb.PersistentClient(
+                    path=self.db_path,
+                    settings=Settings(
+                        anonymized_telemetry=False,
+                        allow_reset=True
+                    )
+                )
+            except Exception as e:
+                logger.warning(f"PersistentClient failed, using EphemeralClient: {e}")
+                # Fallback to in-memory client for cloud deployment
+                self.client = chromadb.EphemeralClient()
             
             # Get or create collection
             try:

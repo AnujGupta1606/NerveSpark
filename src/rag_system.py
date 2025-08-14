@@ -1,9 +1,18 @@
 from typing import Dict, List, Any, Optional, Tuple
 import logging
-from src.embeddings import RecipeEmbeddingGenerator
-from src.vector_store import RecipeVectorStore
-from src.health_logic import HealthLogicEngine
-from src.substitution import IngredientSubstitutionEngine
+import streamlit as st
+
+# Import with error handling for cloud deployment
+try:
+    from src.embeddings import RecipeEmbeddingGenerator
+    from src.vector_store import RecipeVectorStore
+    from src.health_logic import HealthLogicEngine
+    from src.substitution import IngredientSubstitutionEngine
+    from src.cloud_data import initialize_cloud_data
+except ImportError as e:
+    st.error(f"Import error: {e}")
+    st.stop()
+
 import openai
 import os
 
@@ -19,20 +28,72 @@ class NutritionalRAGSystem:
     def __init__(self, 
                  embedding_model: str = "all-MiniLM-L6-v2",
                  vector_db_path: str = "./chroma_db",
-                 use_openai: bool = True):
+                 use_openai: bool = False):  # Disable OpenAI by default for cloud
         
-        self.embedding_generator = RecipeEmbeddingGenerator(
-            model_name=embedding_model, 
-            use_openai=False  # Start with local embeddings for reliability
-        )
-        self.vector_store = RecipeVectorStore(db_path=vector_db_path)
+        try:
+            self.embedding_generator = RecipeEmbeddingGenerator(
+                model_name=embedding_model, 
+                use_openai=False  # Use local embeddings for cloud compatibility
+            )
+            self.vector_store = RecipeVectorStore(db_path=vector_db_path)
+            self.health_engine = HealthLogicEngine()
+            self.substitution_engine = IngredientSubstitutionEngine()
+            
+            # Initialize cloud data if no local data available
+            self._ensure_data_availability()
+            
+        except Exception as e:
+            logger.error(f"Error initializing RAG system: {e}")
+            # Initialize with minimal functionality for cloud deployment
+            self._initialize_minimal_system()
+        
+        # OpenAI setup for text generation (optional)
+        self.use_openai = use_openai
+        if use_openai and os.getenv("OPENAI_API_KEY"):
+            openai.api_key = os.getenv("OPENAI_API_KEY")
+        else:
+            self.use_openai = False
+    
+    def _ensure_data_availability(self):
+        """Ensure data is available for the system."""
+        try:
+            # Check if vector store has data
+            if self.vector_store.collection and self.vector_store.collection.count() == 0:
+                logger.info("No data in vector store, initializing with sample data...")
+                recipes_df, nutrition_df = initialize_cloud_data()
+                if not recipes_df.empty:
+                    self._populate_from_dataframe(recipes_df)
+        except Exception as e:
+            logger.warning(f"Could not check/populate vector store: {e}")
+    
+    def _initialize_minimal_system(self):
+        """Initialize minimal system for cloud deployment."""
+        logger.warning("Initializing minimal RAG system for cloud deployment")
+        self.embedding_generator = None
+        self.vector_store = None
         self.health_engine = HealthLogicEngine()
         self.substitution_engine = IngredientSubstitutionEngine()
-        
-        # OpenAI setup for text generation
-        self.use_openai = use_openai
-        if use_openai:
-            openai.api_key = os.getenv("OPENAI_API_KEY")
+        self.use_openai = False
+    
+    def _populate_from_dataframe(self, recipes_df):
+        """Populate vector store with sample data."""
+        try:
+            for _, recipe in recipes_df.iterrows():
+                # Create recipe text for embedding
+                recipe_text = f"{recipe['name']} {' '.join(recipe['ingredients'])} {recipe['instructions']}"
+                
+                # Generate embedding
+                embedding = self.embedding_generator.generate_embedding(recipe_text)
+                
+                # Store in vector database
+                self.vector_store.add_recipe(
+                    recipe_id=recipe['name'],
+                    recipe_data=recipe.to_dict(),
+                    embedding=embedding
+                )
+            logger.info(f"Populated vector store with {len(recipes_df)} recipes")
+        except Exception as e:
+            logger.error(f"Error populating vector store: {e}")
     
     def process_user_query(self, 
                           query: str,
