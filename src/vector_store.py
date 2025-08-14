@@ -46,6 +46,9 @@ class RecipeVectorStore:
     def _initialize_db(self):
         """Initialize vector database with ChromaDB or fallback."""
         
+        # Always initialize fallback store first as a safety net
+        self.fallback_store = FallbackVectorStore(self.collection_name)
+        
         # First try ChromaDB if available
         if CHROMADB_AVAILABLE:
             try:
@@ -56,7 +59,6 @@ class RecipeVectorStore:
         
         # Fall back to simple implementation
         logger.info("Using fallback vector store implementation")
-        self.fallback_store = FallbackVectorStore(self.collection_name)
         self.using_chromadb = False
     
     def _initialize_chromadb(self):
@@ -120,6 +122,10 @@ class RecipeVectorStore:
     
     def search_similar_recipes(self, query_embedding: np.ndarray, n_results: int = 5) -> List[Dict[str, Any]]:
         """Search for similar recipes."""
+        # Always ensure fallback store is available
+        if not self.fallback_store:
+            self.fallback_store = FallbackVectorStore(self.collection_name)
+        
         if self.using_chromadb and self.collection:
             try:
                 # ChromaDB implementation
@@ -144,7 +150,9 @@ class RecipeVectorStore:
                 return formatted_results
             except Exception as e:
                 logger.error(f"Error searching ChromaDB: {e}")
-                return []
+                logger.info("Falling back to simple search implementation")
+                # Fall back to fallback store
+                return self.fallback_store.search_similar_recipes(query_embedding, n_results)
         else:
             # Fallback implementation
             return self.fallback_store.search_similar_recipes(query_embedding, n_results)
@@ -231,6 +239,22 @@ class RecipeVectorStore:
             Dictionary containing search results
         """
         try:
+            # Check if collection is available, re-initialize if needed
+            if not self.collection:
+                logger.warning("Collection is None, attempting to re-initialize")
+                if self.fallback_store:
+                    # Use fallback if ChromaDB collection is lost
+                    if isinstance(query_embedding, list):
+                        query_embedding = np.array(query_embedding)
+                    return {
+                        'recipes': self.fallback_store.search_similar_recipes(query_embedding, n_results),
+                        'distances': [],
+                        'total_results': 0
+                    }
+                else:
+                    logger.error("No fallback store available")
+                    return {'recipes': [], 'distances': [], 'total_results': 0}
+            
             # Convert numpy array to list if needed
             if isinstance(query_embedding, np.ndarray):
                 query_embedding = query_embedding.tolist()
@@ -265,6 +289,20 @@ class RecipeVectorStore:
             
         except Exception as e:
             logger.error(f"Error searching recipes: {e}")
+            # Try fallback if available
+            if self.fallback_store:
+                try:
+                    if isinstance(query_embedding, list):
+                        query_embedding = np.array(query_embedding)
+                    fallback_results = self.fallback_store.search_similar_recipes(query_embedding, n_results)
+                    return {
+                        'recipes': fallback_results,
+                        'distances': [],
+                        'total_results': len(fallback_results)
+                    }
+                except Exception as fallback_error:
+                    logger.error(f"Fallback search also failed: {fallback_error}")
+            
             return {'recipes': [], 'distances': [], 'total_results': 0}
     
     def filter_by_dietary_restrictions(self, dietary_restrictions: List[str]) -> List[str]:
