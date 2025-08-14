@@ -118,22 +118,16 @@ HUGGINGFACE_API_TOKEN=your_hf_token_here
 
 ## Authors
 
-**Anuj Singh** - *Full Stack Developer & AI Engineer*
-- Email: anuj.singh@example.com
-- GitHub: [@anujsingh](https://github.com/anujsingh)
-- LinkedIn: [Anuj Singh](https://linkedin.com/in/anuj-singh)
+**Anuj Gupta** - *Full Stack Developer & AI Engineer*
+- Email: satyam2465@gmail.com
+- GitHub: https://github.com/AnujGupta1606
+- LinkedIn: https://www.linkedin.com/in/anujgupta16/
 
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details
 
-## Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Create a Pull Request
 
 ## Acknowledgments
 
@@ -144,4 +138,4 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 ---
 
-**Built with ❤️ for healthier eating habits**
+**ANUJ GUPTA**
