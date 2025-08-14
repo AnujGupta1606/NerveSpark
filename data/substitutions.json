@@ -1,53 +1,49 @@
 {
-  "dairy_substitutions": {
+  "dairy_free": {
     "milk": [
-      {"substitute": "almond milk", "ratio": "1:1", "notes": "Lower calories, nutty flavor"},
-      {"substitute": "oat milk", "ratio": "1:1", "notes": "Creamy texture, slightly sweet"},
-      {"substitute": "coconut milk", "ratio": "1:1", "notes": "Rich, tropical flavor"},
-      {"substitute": "soy milk", "ratio": "1:1", "notes": "High protein, neutral taste"}
-    ],
-    "butter": [
-      {"substitute": "coconut oil", "ratio": "3:4", "notes": "Solid at room temp, mild coconut flavor"},
-      {"substitute": "olive oil", "ratio": "3:4", "notes": "Liquid, fruity flavor"},
-      {"substitute": "avocado", "ratio": "1:2", "notes": "Adds fiber, creamy texture"},
-      {"substitute": "applesauce", "ratio": "1:2", "notes": "Lower fat, adds sweetness"}
+      "almond milk",
+      "oat milk",
+      "coconut milk"
     ],
     "cheese": [
-      {"substitute": "nutritional yeast", "ratio": "1:4", "notes": "Nutty, cheesy flavor"},
-      {"substitute": "cashew cream", "ratio": "1:1", "notes": "Creamy, mild flavor"},
-      {"substitute": "tofu ricotta", "ratio": "1:1", "notes": "High protein, crumbly texture"}
+      "nutritional yeast",
+      "cashew cheese",
+      "vegan cheese"
+    ],
+    "yogurt": [
+      "coconut yogurt",
+      "almond yogurt"
     ]
   },
-  "gluten_substitutions": {
+  "gluten_free": {
     "wheat flour": [
-      {"substitute": "almond flour", "ratio": "1:1", "notes": "Nutty, dense, high protein"},
-      {"substitute": "rice flour", "ratio": "1:1", "notes": "Light, neutral flavor"},
-      {"substitute": "oat flour", "ratio": "1:1", "notes": "Mild, slightly sweet"},
-      {"substitute": "coconut flour", "ratio": "1:4", "notes": "Very absorbent, add extra liquid"}
+      "almond flour",
+      "rice flour",
+      "coconut flour"
+    ],
+    "bread": [
+      "gluten-free bread",
+      "rice cakes"
     ],
     "pasta": [
-      {"substitute": "zucchini noodles", "ratio": "1:1", "notes": "Very low carb, fresh taste"},
-      {"substitute": "shirataki noodles", "ratio": "1:1", "notes": "Almost zero calories"},
-      {"substitute": "lentil pasta", "ratio": "1:1", "notes": "High protein, earthy flavor"}
+      "rice pasta",
+      "quinoa pasta",
+      "zucchini noodles"
     ]
   },
-  "meat_substitutions": {
-    "ground beef": [
-      {"substitute": "lentils", "ratio": "1:1", "notes": "High protein, fiber, earthy taste"},
-      {"substitute": "mushrooms", "ratio": "1:1", "notes": "Umami flavor, meaty texture"},
-      {"substitute": "black beans", "ratio": "1:1", "notes": "High protein, mild flavor"}
+  "low_carb": {
+    "rice": [
+      "cauliflower rice",
+      "broccoli rice"
     ],
-    "chicken": [
-      {"substitute": "tofu", "ratio": "1:1", "notes": "Absorbs flavors well, high protein"},
-      {"substitute": "cauliflower", "ratio": "1:1", "notes": "Mild flavor, versatile texture"},
-      {"substitute": "jackfruit", "ratio": "1:1", "notes": "Stringy texture, mild taste"}
-    ]
-  },
-  "sugar_substitutions": {
-    "white sugar": [
-      {"substitute": "stevia", "ratio": "1:24", "notes": "Zero calories, very sweet"},
-      {"substitute": "monk fruit", "ratio": "1:3", "notes": "Zero calories, no aftertaste"},
-      {"substitute": "erythritol", "ratio": "1:1", "notes": "Low calories, cooling effect"}
+    "pasta": [
+      "zucchini noodles",
+      "spaghetti squash"
+    ],
+    "potatoes": [
+      "turnips",
+      "radishes",
+      "cauliflower"
     ]
   }
 }

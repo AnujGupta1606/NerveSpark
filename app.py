@@ -11,10 +11,46 @@ from typing import Dict, List, Any, Optional
 import logging
 import sys
 import traceback
+import os
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Cloud data setup for Streamlit Cloud deployment
+@st.cache_data
+def setup_cloud_environment():
+    """Setup data for cloud deployment if needed"""
+    try:
+        # Check if we're in a cloud environment and data doesn't exist
+        if not os.path.exists("chroma_db") or not os.path.exists("data/recipes.csv"):
+            logger.info("Setting up cloud environment...")
+            
+            # Run setup script
+            try:
+                import setup_cloud_data
+                result = setup_cloud_data.setup_cloud_data()
+                if result:
+                    logger.info("✅ Cloud setup completed")
+                    return True
+                else:
+                    logger.warning("⚠️ Cloud setup had issues")
+                    return False
+            except Exception as e:
+                logger.error(f"❌ Cloud setup failed: {e}")
+                return False
+        else:
+            logger.info("✅ Data already exists, skipping setup")
+            return True
+    except Exception as e:
+        logger.error(f"Setup error: {e}")
+        return False
+
+# Initialize cloud environment
+try:
+    setup_cloud_environment()
+except Exception as e:
+    logger.warning(f"Cloud setup warning: {e}")
 
 # Import modules with error handling for cloud deployment
 try:
