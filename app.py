@@ -173,10 +173,11 @@ class NerveSparkApp:
         
         with col1:
             query = st.text_input(
-                "",
+                "Search Query",
                 placeholder="Try: 'chicken curry', 'low carb pasta', 'diabetic breakfast', 'high protein salad'...",
                 help="Use natural language - our AI understands context!",
-                key="main_search"
+                key="main_search",
+                label_visibility="collapsed"
             )
         
         with col2:
