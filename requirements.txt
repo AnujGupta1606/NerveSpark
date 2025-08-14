@@ -3,10 +3,6 @@ pandas
 numpy
 scikit-learn
 sentence-transformers
-openai
-python-dotenv
 plotly
-requests
-python-multipart
+chromadb
 pydantic
-altair

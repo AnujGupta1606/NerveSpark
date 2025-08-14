@@ -12,7 +12,6 @@ try:
     from src.vector_store import RecipeVectorStore
     from src.health_logic import HealthLogicEngine
     from src.substitution import IngredientSubstitutionEngine
-    from src.cloud_data import initialize_cloud_data
     IMPORTS_SUCCESSFUL = True
 except ImportError as e:
     IMPORTS_SUCCESSFUL = False
@@ -67,12 +66,9 @@ class NutritionalRAGSystem:
         try:
             # Check if vector store has data
             if self.vector_store.collection and self.vector_store.collection.count() == 0:
-                logger.info("No data in vector store, initializing with sample data...")
-                recipes_df, nutrition_df = initialize_cloud_data()
-                if not recipes_df.empty:
-                    self._populate_from_dataframe(recipes_df)
+                logger.info("No data in vector store, but data should be loaded from setup_data.py")
         except Exception as e:
-            logger.warning(f"Could not check/populate vector store: {e}")
+            logger.warning(f"Could not check vector store: {e}")
     
     def _initialize_minimal_system(self):
         """Initialize minimal system for cloud deployment."""
