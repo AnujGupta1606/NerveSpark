@@ -21,7 +21,14 @@ except ImportError as e:
         st.error(f"Import error: {e}")
         st.stop()
 
-import openai
+# Optional OpenAI import - not required for core functionality
+try:
+    import openai
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.info("OpenAI not available - using local embeddings only")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -55,8 +62,8 @@ class NutritionalRAGSystem:
             self._initialize_minimal_system()
         
         # OpenAI setup for text generation (optional)
-        self.use_openai = use_openai
-        if use_openai and os.getenv("OPENAI_API_KEY"):
+        self.use_openai = use_openai and OPENAI_AVAILABLE
+        if self.use_openai and os.getenv("OPENAI_API_KEY"):
             openai.api_key = os.getenv("OPENAI_API_KEY")
         else:
             self.use_openai = False
@@ -289,14 +296,16 @@ Please provide a warm, personalized summary that:
 5. Keep it conversational and encouraging (2-3 paragraphs max)
 """
             
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=300,
-                temperature=0.7
-            )
-            
-            return response.choices[0].message.content.strip()
+            if OPENAI_AVAILABLE:
+                response = openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo",
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=300,
+                    temperature=0.7
+                )
+                return response.choices[0].message.content.strip()
+            else:
+                return self._generate_template_summary(context)
             
         except Exception as e:
             logger.error(f"OpenAI generation error: {e}")
