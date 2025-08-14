@@ -2,17 +2,21 @@
 
 ## 🚀 Deploy NerveSpark to Streamlit Cloud
 
-### Option 1: Full Featured Version (Recommended for Local)
+### ⭐ RECOMMENDED: Full Featured Version (Identical to Local Port 8892)
 **Main file:** `app.py`  
 **Requirements:** `requirements.txt`  
 **Python version:** 3.9+
+**Repository:** https://github.com/AnujGupta1606/NerveSpark
+**Branch:** main
 
-### Option 2: Cloud Optimized Version (For Streamlit Cloud)
+⚡ **This gives you the EXACT same experience as `streamlit run app.py --server.port 8892`**
+
+### Alternative: Cloud Optimized Version (Fallback Only)
 **Main file:** `app_cloud.py`  
 **Requirements:** `requirements_cloud.txt`  
 **Python version:** 3.9+
 
-## 📝 Deployment Steps:
+## 📝 Deployment Steps for Full Version:
 
 1. **Login to Streamlit Cloud**
    - Go to https://share.streamlit.io/
