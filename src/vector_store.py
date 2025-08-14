@@ -1,5 +1,3 @@
-import chromadb
-from chromadb.config import Settings
 import numpy as np
 import pandas as pd
 from typing import List, Dict, Optional, Any, Tuple
@@ -11,10 +9,22 @@ import tempfile
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Try to import ChromaDB, fall back to simple implementation if it fails
+try:
+    import chromadb
+    from chromadb.config import Settings
+    CHROMADB_AVAILABLE = True
+except ImportError:
+    CHROMADB_AVAILABLE = False
+    logger.warning("ChromaDB not available, using fallback implementation")
+
+# Import fallback vector store
+from src.fallback_vector_store import FallbackVectorStore
+
 class RecipeVectorStore:
     """
-    Manages recipe embeddings in ChromaDB vector database.
-    Handles storage, retrieval, and similarity search for recipe embeddings.
+    Manages recipe embeddings in vector database.
+    Automatically falls back to simple implementation if ChromaDB fails.
     """
     
     def __init__(self, db_path: str = "./chroma_db", collection_name: str = "recipes"):
@@ -22,33 +32,50 @@ class RecipeVectorStore:
         self.collection_name = collection_name
         self.client = None
         self.collection = None
+        self.fallback_store = None
+        self.using_chromadb = False
         self._initialize_db()
     
     def _initialize_db(self):
-        """Initialize ChromaDB client and collection with cloud compatibility."""
-        try:
-            # For cloud deployment, use a temporary directory if needed
-            if not os.path.exists(self.db_path):
-                try:
-                    os.makedirs(self.db_path, exist_ok=True)
-                except PermissionError:
-                    # Fallback to temporary directory for cloud deployment
-                    self.db_path = tempfile.mkdtemp()
-                    logger.warning(f"Using temporary directory for ChromaDB: {self.db_path}")
-            
-            # Create ChromaDB client with cloud-compatible settings
+        """Initialize vector database with ChromaDB or fallback."""
+        
+        # First try ChromaDB if available
+        if CHROMADB_AVAILABLE:
             try:
-                self.client = chromadb.PersistentClient(
-                    path=self.db_path,
-                    settings=Settings(
-                        anonymized_telemetry=False,
-                        allow_reset=True
-                    )
-                )
+                self._initialize_chromadb()
+                return
             except Exception as e:
-                logger.warning(f"PersistentClient failed, using EphemeralClient: {e}")
-                # Fallback to in-memory client for cloud deployment
-                self.client = chromadb.EphemeralClient()
+                logger.warning(f"ChromaDB initialization failed: {e}")
+        
+        # Fall back to simple implementation
+        logger.info("Using fallback vector store implementation")
+        self.fallback_store = FallbackVectorStore(self.collection_name)
+        self.using_chromadb = False
+    
+    def _initialize_chromadb(self):
+        """Initialize ChromaDB with cloud compatibility."""
+        # For cloud deployment, use a temporary directory if needed
+        if not os.path.exists(self.db_path):
+            try:
+                os.makedirs(self.db_path, exist_ok=True)
+            except PermissionError:
+                # Fallback to temporary directory for cloud deployment
+                self.db_path = tempfile.mkdtemp()
+                logger.warning(f"Using temporary directory for ChromaDB: {self.db_path}")
+        
+        # Create ChromaDB client with cloud-compatible settings
+        try:
+            self.client = chromadb.PersistentClient(
+                path=self.db_path,
+                settings=Settings(
+                    anonymized_telemetry=False,
+                    allow_reset=True
+                )
+            )
+        except Exception as e:
+            logger.warning(f"PersistentClient failed, using EphemeralClient: {e}")
+            # Fallback to in-memory client for cloud deployment
+            self.client = chromadb.EphemeralClient()
             
             # Get or create collection
             try:
@@ -60,10 +87,72 @@ class RecipeVectorStore:
                     metadata={"description": "Recipe embeddings for nutrition assistant"}
                 )
                 logger.info(f"Created new collection: {self.collection_name}")
+            
+            self.using_chromadb = True
                 
         except Exception as e:
             logger.error(f"Error initializing ChromaDB: {e}")
             raise
+    
+    def add_recipe(self, recipe_id: str, recipe_data: Dict[str, Any], embedding: np.ndarray):
+        """Add a single recipe to the vector store."""
+        if self.using_chromadb and self.collection:
+            try:
+                # ChromaDB implementation
+                recipe_text = f"{recipe_data.get('name', '')} {' '.join(recipe_data.get('ingredients', []))}"
+                self.collection.add(
+                    embeddings=[embedding.tolist()],
+                    documents=[recipe_text],
+                    metadatas=[recipe_data],
+                    ids=[recipe_id]
+                )
+                logger.info(f"Added recipe to ChromaDB: {recipe_id}")
+            except Exception as e:
+                logger.error(f"Error adding recipe to ChromaDB: {e}")
+        else:
+            # Fallback implementation
+            self.fallback_store.add_recipe(recipe_id, recipe_data, embedding)
+    
+    def search_similar_recipes(self, query_embedding: np.ndarray, n_results: int = 5) -> List[Dict[str, Any]]:
+        """Search for similar recipes."""
+        if self.using_chromadb and self.collection:
+            try:
+                # ChromaDB implementation
+                results = self.collection.query(
+                    query_embeddings=[query_embedding.tolist()],
+                    n_results=n_results
+                )
+                
+                formatted_results = []
+                for i, (doc_id, metadata, distance) in enumerate(zip(
+                    results['ids'][0], 
+                    results['metadatas'][0], 
+                    results['distances'][0]
+                )):
+                    formatted_results.append({
+                        'id': doc_id,
+                        'metadata': metadata,
+                        'distance': distance,
+                        'similarity': 1 - distance
+                    })
+                
+                return formatted_results
+            except Exception as e:
+                logger.error(f"Error searching ChromaDB: {e}")
+                return []
+        else:
+            # Fallback implementation
+            return self.fallback_store.search_similar_recipes(query_embedding, n_results)
+    
+    def count(self) -> int:
+        """Get the number of recipes in the store."""
+        if self.using_chromadb and self.collection:
+            try:
+                return self.collection.count()
+            except:
+                return 0
+        else:
+            return self.fallback_store.count()
     
     def add_recipes(self, embeddings: List[List[float]], 
                    documents: List[str], 
