@@ -246,7 +246,7 @@ def main():
         for sample_query in sample_queries:
             if st.button(f"🔍 {sample_query.title()}", key=f"sample_{sample_query}"):
                 st.experimental_set_query_params(query=sample_query)
-                st.experimental_rerun()
+                st.rerun()
     
     # Footer
     st.markdown("---")

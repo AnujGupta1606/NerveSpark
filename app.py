@@ -168,17 +168,28 @@ class NerveSparkApp:
         
         st.subheader("🔍 Smart Recipe Search")
         
+        # Initialize or get quick search query
+        if 'quick_search_query' not in st.session_state:
+            st.session_state.quick_search_query = ""
+        
         # Search input with suggestions
         col1, col2 = st.columns([3, 1])
         
         with col1:
+            # Use the quick search query if it exists, otherwise use the current input
+            default_value = st.session_state.quick_search_query if st.session_state.quick_search_query else ""
             query = st.text_input(
                 "Search Query",
+                value=default_value,
                 placeholder="Try: 'chicken curry', 'low carb pasta', 'diabetic breakfast', 'high protein salad'...",
                 help="Use natural language - our AI understands context!",
                 key="main_search",
                 label_visibility="collapsed"
             )
+            
+            # Clear the quick search query after it's been used
+            if st.session_state.quick_search_query:
+                st.session_state.quick_search_query = ""
         
         with col2:
             search_button = st.button("🔍 Search Recipes", type="primary", use_container_width=True)
@@ -191,8 +202,10 @@ class NerveSparkApp:
         for i, quick_search in enumerate(quick_searches):
             with cols[i]:
                 if st.button(quick_search, key=f"quick_{i}"):
-                    st.session_state.main_search = quick_search.split(" ", 1)[1].lower()
-                    st.experimental_rerun()
+                    # Set the quick search query and rerun
+                    search_term = quick_search.split(" ", 1)[1].lower()
+                    st.session_state.quick_search_query = search_term
+                    st.rerun()
         
         st.markdown('</div>', unsafe_allow_html=True)
         
@@ -454,14 +467,14 @@ class NerveSparkApp:
                 
                 # Quick repeat search
                 if st.button(f"🔄 Search Again", key=f"repeat_{i}"):
-                    st.session_state.main_search = search['query']
-                    st.experimental_rerun()
+                    st.session_state.quick_search_query = search['query']
+                    st.rerun()
         
         # Clear history option
         if st.button("🗑️ Clear Search History"):
             st.session_state.query_history = []
             st.success("Search history cleared!")
-            st.experimental_rerun()
+            st.rerun()
     
     def render_recipe_search(self):
         """Legacy recipe search - keeping for compatibility."""
