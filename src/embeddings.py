@@ -4,6 +4,9 @@ from typing import List, Dict, Optional
 import logging
 import os
 import pickle
+import time
+import hashlib
+from pathlib import Path
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -11,7 +14,7 @@ logger = logging.getLogger(__name__)
 class RecipeEmbeddingGenerator:
     """
     Generates embeddings for recipe text using sentence transformers.
-    Supports both local and OpenAI embedding models.
+    Supports both local and OpenAI embedding models with rate limiting and caching.
     """
     
     def __init__(self, model_name: str = "all-MiniLM-L6-v2", use_openai: bool = False):
@@ -19,6 +22,12 @@ class RecipeEmbeddingGenerator:
         self.use_openai = use_openai
         self.model = None
         self.embedding_cache = {}
+        self.cache_file = f"embedding_cache_{model_name.replace('/', '_')}.pkl"
+        self.last_request_time = 0
+        self.min_request_interval = 1.0  # Minimum 1 second between requests
+        
+        # Load cached embeddings
+        self._load_cache()
         
         if use_openai:
             import openai
@@ -27,62 +36,164 @@ class RecipeEmbeddingGenerator:
         else:
             self._load_sentence_transformer()
     
-    def _load_sentence_transformer(self):
-        """Load the sentence transformer model."""
+    def _load_cache(self):
+        """Load embedding cache from file."""
         try:
-            logger.info(f"Loading sentence transformer model: {self.model_name}")
-            # Try to load with specific device handling for PyTorch 2.8+
-            self.model = SentenceTransformer(self.model_name, device='cpu')
-            logger.info("Model loaded successfully!")
+            if os.path.exists(self.cache_file):
+                with open(self.cache_file, 'rb') as f:
+                    self.embedding_cache = pickle.load(f)
+                logger.info(f"Loaded {len(self.embedding_cache)} cached embeddings")
         except Exception as e:
-            logger.error(f"Error loading model: {e}")
-            # Try alternative approach for PyTorch 2.8+
+            logger.warning(f"Could not load cache: {e}")
+            self.embedding_cache = {}
+    
+    def _save_cache(self):
+        """Save embedding cache to file."""
+        try:
+            with open(self.cache_file, 'wb') as f:
+                pickle.dump(self.embedding_cache, f)
+        except Exception as e:
+            logger.warning(f"Could not save cache: {e}")
+    
+    def _rate_limit(self):
+        """Implement rate limiting to avoid 429 errors."""
+        current_time = time.time()
+        time_since_last_request = current_time - self.last_request_time
+        
+        if time_since_last_request < self.min_request_interval:
+            sleep_time = self.min_request_interval - time_since_last_request
+            logger.info(f"Rate limiting: sleeping for {sleep_time:.2f} seconds")
+            time.sleep(sleep_time)
+        
+        self.last_request_time = time.time()
+    
+    def _load_sentence_transformer(self):
+        """Load the sentence transformer model with retry logic."""
+        max_retries = 3
+        retry_delay = 2
+        
+        for attempt in range(max_retries):
             try:
-                logger.info("Trying alternative loading method...")
-                import torch
-                # Set default tensor type to avoid meta tensor issues
-                torch.set_default_tensor_type('torch.FloatTensor')
-                self.model = SentenceTransformer(self.model_name, device='cpu')
-                logger.info("Alternative method successful!")
-            except Exception as e2:
-                logger.error(f"Alternative method failed: {e2}")
-                # Final fallback
-                logger.info("Using minimal fallback...")
-                self.model = None
+                logger.info(f"Loading sentence transformer model: {self.model_name} (attempt {attempt + 1})")
+                
+                # Rate limit the request
+                self._rate_limit()
+                
+                # Set offline mode if we've failed before
+                if attempt > 0:
+                    os.environ['TRANSFORMERS_OFFLINE'] = '1'
+                    os.environ['HF_HUB_OFFLINE'] = '1'
+                
+                # Try to load with specific device handling
+                self.model = SentenceTransformer(
+                    self.model_name, 
+                    device='cpu',
+                    cache_folder='./model_cache'  # Local cache folder
+                )
+                logger.info("Model loaded successfully!")
+                return
+                
+            except Exception as e:
+                logger.warning(f"Attempt {attempt + 1} failed: {e}")
+                
+                if attempt < max_retries - 1:
+                    logger.info(f"Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                    retry_delay *= 2  # Exponential backoff
+                else:
+                    logger.error("All attempts failed, using fallback...")
+                    self._create_fallback_model()
+    
+    def _create_fallback_model(self):
+        """Create a simple fallback embedding model."""
+        logger.warning("Creating fallback embedding model...")
+        
+        class FallbackEmbedder:
+            def encode(self, texts, **kwargs):
+                # Simple word-based embedding using hash
+                if isinstance(texts, str):
+                    texts = [texts]
+                
+                embeddings = []
+                for text in texts:
+                    # Create a simple 384-dimensional embedding
+                    words = text.lower().split()
+                    embedding = np.zeros(384)
+                    
+                    for i, word in enumerate(words[:20]):  # Use first 20 words
+                        hash_val = int(hashlib.md5(word.encode()).hexdigest(), 16)
+                        for j in range(19):  # Fill embedding dimensions
+                            embedding[i * 19 + j] = (hash_val >> (j * 2)) & 0x3F
+                    
+                    # Normalize
+                    norm = np.linalg.norm(embedding)
+                    if norm > 0:
+                        embedding = embedding / norm
+                    
+                    embeddings.append(embedding)
+                
+                return np.array(embeddings)
+        
+        self.model = FallbackEmbedder()
+        logger.info("Fallback embedding model created")
     
     def generate_embedding(self, text: str) -> np.ndarray:
-        """Generate embedding for a single text."""
+        """Generate embedding for a single text with caching and rate limiting."""
         if not text or text.strip() == "":
             return np.zeros(384)  # Default embedding size for MiniLM
         
-        # Check cache first
-        if text in self.embedding_cache:
-            return self.embedding_cache[text]
+        # Create cache key
+        cache_key = hashlib.md5(text.encode()).hexdigest()
         
-        # If model failed to load, return random embedding for demo
+        # Check cache first
+        if cache_key in self.embedding_cache:
+            return self.embedding_cache[cache_key]
+        
+        # If model failed to load, use fallback
         if self.model is None:
-            logger.warning("Model not loaded, using random embedding for demo")
-            # Generate a consistent random embedding based on text hash
-            import hashlib
-            text_hash = int(hashlib.md5(text.encode()).hexdigest()[:8], 16)
-            np.random.seed(text_hash % 2**32)
-            embedding = np.random.randn(384).astype(np.float32)
-            self.embedding_cache[text] = embedding
-            return embedding
+            logger.warning("Model not loaded, using fallback embedding")
+            return self._create_fallback_embedding(text)
         
         try:
+            # Rate limit for API calls
+            if not self.use_openai:
+                self._rate_limit()
+            
             if self.use_openai:
                 embedding = self._get_openai_embedding(text)
             else:
-                embedding = self.model.encode(text, convert_to_numpy=True)
+                # Handle both single text and batch processing
+                if hasattr(self.model, 'encode'):
+                    embedding = self.model.encode([text], convert_to_numpy=True)[0]
+                else:
+                    # Fallback model
+                    embedding = self.model.encode([text])[0]
             
             # Cache the embedding
-            self.embedding_cache[text] = embedding
+            self.embedding_cache[cache_key] = embedding
+            
+            # Periodically save cache
+            if len(self.embedding_cache) % 10 == 0:
+                self._save_cache()
+            
             return embedding
             
         except Exception as e:
             logger.error(f"Error generating embedding: {e}")
-            return np.zeros(384)
+            # Return fallback embedding instead of zeros
+            return self._create_fallback_embedding(text)
+    
+    def _create_fallback_embedding(self, text: str) -> np.ndarray:
+        """Create a simple fallback embedding."""
+        # Generate a consistent embedding based on text hash
+        text_hash = int(hashlib.md5(text.encode()).hexdigest()[:8], 16)
+        np.random.seed(text_hash % 2**32)
+        embedding = np.random.randn(384).astype(np.float32)
+        # Normalize
+        norm = np.linalg.norm(embedding)
+        if norm > 0:
+            embedding = embedding / norm
+        return embedding
     
     def _get_openai_embedding(self, text: str) -> np.ndarray:
         """Get embedding using OpenAI API."""
