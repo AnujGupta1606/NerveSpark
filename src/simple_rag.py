@@ -1,13 +1,18 @@
 """
 Simplified RAG system for cloud deployment.
-Uses minimal dependencies and sample data.
+Uses minimal dependencies and sample data with cloud-optimized embeddings.
 """
 
-import streamlit as st
 import pandas as pd
 import numpy as np
 from typing import Dict, List, Any, Optional
 import logging
+
+# Try to import cloud embeddings, fallback to simple hash if not available
+try:
+    from .cloud_embeddings import CloudEmbeddingGenerator
+except ImportError:
+    CloudEmbeddingGenerator = None
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -15,12 +20,22 @@ logger = logging.getLogger(__name__)
 class SimpleNutritionalRAG:
     """
     Simplified RAG system for cloud deployment.
-    Provides basic nutrition recommendations using sample data.
+    Provides basic nutrition recommendations using sample data and cloud embeddings.
     """
     
     def __init__(self):
         self.sample_recipes = self._load_sample_recipes()
         self.sample_nutrition = self._load_nutrition_data()
+        
+        # Initialize cloud embedding system
+        if CloudEmbeddingGenerator:
+            self.embedding_generator = CloudEmbeddingGenerator()
+        else:
+            self.embedding_generator = None
+            
+        # Pre-compute recipe embeddings
+        self.recipe_embeddings = self._compute_recipe_embeddings()
+        
         logger.info("Initialized simple RAG system for cloud deployment")
     
     def _load_sample_recipes(self):
@@ -105,31 +120,72 @@ class SimpleNutritionalRAG:
             "greek yogurt": {"calories": 59, "protein": 10, "carbs": 3.6, "fat": 0.4}
         }
     
+    def _compute_recipe_embeddings(self):
+        """Pre-compute embeddings for all recipes."""
+        if not self.embedding_generator:
+            return []
+        
+        embeddings = []
+        for recipe in self.sample_recipes:
+            # Create recipe text for embedding
+            recipe_text = f"{recipe['name']} {' '.join(recipe['ingredients'])} {recipe['cuisine']} {' '.join(recipe['dietary_tags'])}"
+            embedding = self.embedding_generator.generate_embedding(recipe_text)
+            embeddings.append(embedding)
+        
+        logger.info(f"Computed embeddings for {len(embeddings)} recipes")
+        return embeddings
+    
     def search_recipes(self, query: str, dietary_restrictions: List[str] = None, max_results: int = 3):
         """
-        Simple text-based recipe search.
+        Enhanced recipe search using embeddings when available.
         """
         query_lower = query.lower()
         dietary_restrictions = dietary_restrictions or []
         
-        # Simple keyword matching
-        matching_recipes = []
-        for recipe in self.sample_recipes:
-            # Check if query matches recipe name or ingredients
-            if (query_lower in recipe['name'].lower() or 
-                any(query_lower in ingredient.lower() for ingredient in recipe['ingredients'])):
-                
-                # Check dietary restrictions
-                if dietary_restrictions:
-                    recipe_tags = recipe.get('dietary_tags', [])
-                    if any(restriction in recipe_tags for restriction in dietary_restrictions):
-                        matching_recipes.append(recipe)
-                else:
+        if self.embedding_generator and self.recipe_embeddings:
+            # Use embedding-based search
+            query_embedding = self.embedding_generator.generate_embedding(query)
+            similar_indices = self.embedding_generator.search_similar(
+                query_embedding, self.recipe_embeddings, max_results
+            )
+            
+            matching_recipes = []
+            for idx in similar_indices:
+                if idx < len(self.sample_recipes):
+                    recipe = self.sample_recipes[idx]
+                    
+                    # Check dietary restrictions
+                    if dietary_restrictions:
+                        recipe_tags = recipe.get('dietary_tags', [])
+                        if not any(restriction in recipe_tags for restriction in dietary_restrictions):
+                            continue
+                    
                     matching_recipes.append(recipe)
+            
+            logger.info(f"Found {len(matching_recipes)} recipes using embedding search")
+            
+        else:
+            # Fallback to simple keyword matching
+            matching_recipes = []
+            for recipe in self.sample_recipes:
+                # Check if query matches recipe name or ingredients
+                if (query_lower in recipe['name'].lower() or 
+                    any(query_lower in ingredient.lower() for ingredient in recipe['ingredients'])):
+                    
+                    # Check dietary restrictions
+                    if dietary_restrictions:
+                        recipe_tags = recipe.get('dietary_tags', [])
+                        if any(restriction in recipe_tags for restriction in dietary_restrictions):
+                            matching_recipes.append(recipe)
+                    else:
+                        matching_recipes.append(recipe)
+            
+            logger.info(f"Found {len(matching_recipes)} recipes using keyword search")
         
-        # If no matches, return all recipes
+        # If no matches, return popular recipes
         if not matching_recipes:
-            matching_recipes = self.sample_recipes
+            matching_recipes = self.sample_recipes[:max_results]
+            logger.info(f"No specific matches, returning {len(matching_recipes)} popular recipes")
         
         return matching_recipes[:max_results]
     
