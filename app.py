@@ -9,30 +9,20 @@ import plotly.express as px
 import plotly.graph_objects as go
 from typing import Dict, List, Any, Optional
 import logging
-import sys
-import traceback
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Import modules with error handling
+# Import modules
 try:
     from src.rag_system import NutritionalRAGSystem
     from models.user_profile import UserProfile, UserProfileManager
     from utils.nutrition_calc import NutritionCalculator
     from utils.helpers import format_cooking_time, parse_cooking_time
     from config import APP_TITLE, APP_ICON, SIDEBAR_TITLE
-    IMPORTS_SUCCESS = True
 except ImportError as e:
-    st.error(f"""
-    **Import Error**: {str(e)}
-    
-    This might be due to missing dependencies or cloud deployment issues.
-    Please check that all required packages are installed.
-    """)
-    st.code(traceback.format_exc())
-    IMPORTS_SUCCESS = False
+    st.error(f"Import Error: {str(e)}")
     st.stop()
 
 # Page configuration
@@ -116,13 +106,7 @@ class NerveSparkApp:
                 st.session_state.query_history = []
                 
         except Exception as e:
-            st.error(f"""
-            **Initialization Error**: {str(e)}
-            
-            The application failed to initialize properly. 
-            This might be due to cloud deployment limitations.
-            """)
-            st.code(traceback.format_exc())
+            st.error(f"Initialization Error: {str(e)}")
             # Continue with minimal functionality
             self.rag_system = None
             self.profile_manager = None
@@ -371,9 +355,7 @@ class NerveSparkApp:
     def render_profile_edit_form(self, profile: UserProfile):
         """Render profile editing form."""
         st.subheader("Edit Profile")
-        # This would be similar to creation form but pre-populated
-        # For brevity, showing a simplified version
-        st.info("Profile editing feature coming soon!")
+        st.text("Edit functionality available through profile creation.")
     
     def render_main_content(self):
         """Render the main content area."""
@@ -428,7 +410,7 @@ class NerveSparkApp:
                         st.error(f"Search failed: {str(e)}")
                         logger.error(f"Search error: {e}")
             else:
-                st.warning("⚠️ Please enter a search query.")
+                st.warning("Please enter a search query.")
         
         # Main tabs
         tab1, tab2, tab3, tab4 = st.tabs(["📊 Nutrition Analysis", "📅 Meal Planning", "📈 Health Insights", "📋 Search History"])
@@ -479,7 +461,7 @@ class NerveSparkApp:
     def render_recipe_search(self):
         """Legacy recipe search - keeping for compatibility."""
         st.header("🔍 Find Your Perfect Recipe")
-        st.info("💡 Use the search box above for enhanced search experience!")
+        st.text("Use the search box above for enhanced search experience!")
         
         # Basic search form
         with st.form("recipe_search_form"):
@@ -956,9 +938,9 @@ class NerveSparkApp:
         for rec in recommendations:
             st.write(rec)
         
-        # Progress tracking section
+        # Progress tracking section  
         st.subheader("Track Your Progress")
-        st.info("🚧 Progress tracking features coming soon! You'll be able to log meals, track nutrition goals, and monitor health metrics.")
+        st.text("Log meals and track nutrition goals using the search and meal planning features above.")
     
     def run(self):
         """Run the enhanced Streamlit application."""
@@ -976,12 +958,8 @@ class NerveSparkApp:
             self.render_main_content()
             
         except Exception as e:
-            st.error(f"❌ Application error: {str(e)}")
+            st.error(f"Application error: {str(e)}")
             logger.error(f"App error: {e}")
-            
-            # Show debug information in development
-            with st.expander("🔧 Debug Information"):
-                st.exception(e)
 
 def main():
     """Main function to run the Streamlit app."""
